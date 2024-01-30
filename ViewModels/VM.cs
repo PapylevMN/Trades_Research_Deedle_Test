@@ -29,6 +29,8 @@ namespace Trades_Research.ViewModels
 
         public List<List<PnlHour>> WeekHours { get; set; } = new List<List<PnlHour>>();
 
+        decimal _max = 0;
+
         IFormatProvider formatter = new NumberFormatInfo { NumberDecimalSeparator = "." };
 
         #endregion
@@ -180,7 +182,8 @@ namespace Trades_Research.ViewModels
                         var df_hour_distributed = df.Where(r => ((int)r.Value.TryGetAs<DateTime>("9").ValueOrDefault.DayOfWeek == day) &&
                                                                     ((int)r.Value.TryGetAs<DateTime>("10").ValueOrDefault.Hour == hour));
 
-                        summEq += Convert.ToDecimal(df_hour_distributed.GetColumn<double>("24").Sum());
+                        decimal result = (df_hour_distributed.RowCount == 0) ? 0 : Convert.ToDecimal(df_hour_distributed.GetColumn<double>("24").Sum());
+                        summEq += result;
                     }
                     else continue;
                 }
@@ -205,7 +208,9 @@ namespace Trades_Research.ViewModels
                     var df_hour_distributed = df_filtered_date.Where(r => ((int)r.Value.TryGetAs<DateTime>("9").ValueOrDefault.DayOfWeek == day) &&
                                                                     ((int)r.Value.TryGetAs<DateTime>("10").ValueOrDefault.Hour == hour));
                     
-                    WeekHours[day][hour].PnL = (df_hour_distributed.RowCount == 0) ? 0 : Convert.ToDecimal(df_hour_distributed.GetColumn<double>("24").Sum()); 
+                    WeekHours[day][hour].PnL = (df_hour_distributed.RowCount == 0) ? 0 : Convert.ToDecimal(df_hour_distributed.GetColumn<double>("24").Sum());
+
+                    WeekHours[day][hour].Maximum = _max;
                 }
             }
             
@@ -213,7 +218,8 @@ namespace Trades_Research.ViewModels
         }
 
         private void LoadCSV(object obj)
-        { 
+        {
+            decimal _min = 0;
             
             OpenFileDialog fileDialog = new OpenFileDialog();
 
@@ -227,6 +233,10 @@ namespace Trades_Research.ViewModels
                 }
 
                 df = Frame.ReadCsv(filename, hasHeaders: true, inferTypes: true, separators: ";"); // Считываем scv файл в датафрейм df
+
+                _max = Convert.ToDecimal(df.GetColumn<double>("24").Max());
+                _min = Convert.ToDecimal(df.GetColumn<double>("24").Min());
+                if (_max < Math.Abs(_min)) { _max = Math.Abs(_min); }
             }
         }
         #endregion
